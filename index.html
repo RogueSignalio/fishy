@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Phaser 3.9 Spear Fishing</title>
+    <style>
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { border: 2px solid #444; }
+    </style>
+<script src="https://cdn.jsdelivr.net/npm/phaser@v3.90.0/dist/phaser.min.js" crossorigin="anonymous"></script>
+<script src="./fishy.js"></script>
+</head>
+<body>
+<div id="fish-game" style="width:580px;height:580px;"></div>
+<script>
+const config = {
+    type: Phaser.AUTO,
+    width: 640,
+    height: 640,
+    parent: 'fish-game', // ID of the parent HTML element
+    scale: {
+         mode: Phaser.Scale.FIT, // Scales to fit the container
+         autoCenter: Phaser.Scale.CENTER_BOTH // Centers the canvas
+    },
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 0 },
+            // debug: true
+        }
+    },
+    scene: FishingScene
+};
+
+const game = new Phaser.Game(config);
+
+</script>
+
+</body>
+</html>   
