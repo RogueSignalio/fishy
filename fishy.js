@@ -1,22 +1,28 @@
 class FishingScene extends Phaser.Scene {
-    constructor() {
+    constructor(cfg={}) {
         super({ key: 'FishingScene' });
+        this.cfg = {
+          image_path: './',
+          ...cfg
+        }
     }
 
     preload() {
-        this.load.image('background', './assets/backTest.jpg');
-        this.load.image('foreground', './assets/porthole.png');
-        this.load.image('decor', './assets/border01.png');
-        this.load.image('fish01', './assets/fish01.png');
-        this.load.image('fish02', './assets/fish02.png');
-        this.load.image('fish03', './assets/fish03.png');
-        this.load.image('fish04', './assets/fish04.png');
-        this.load.image('shark01','./assets/shark01.png');      
-        this.load.image('jelly01', './assets/jelly01.png');      
-        this.load.image('seaweed01', './assets/seaweed01.png');      
+        this.load.setPath(this.cfg.image_path);
+
+        this.load.image('background', 'assets/backTest.jpg');
+        this.load.image('foreground', 'assets/porthole.png');
+        this.load.image('decor', 'assets/border01.png');
+        this.load.image('fish01', 'assets/fish01.png');
+        this.load.image('fish02', 'assets/fish02.png');
+        this.load.image('fish03', 'assets/fish03.png');
+        this.load.image('fish04', 'assets/fish04.png');
+        this.load.image('shark01','assets/shark01.png');      
+        this.load.image('jelly01', 'assets/jelly01.png');      
+        this.load.image('seaweed01', 'assets/seaweed01.png');      
         // this.load.image('player', './assets/player.png');      
-        this.load.image('spear', './assets/spear.png');     
-        this.load.image('flicker', './assets/flicker.png');     
+        this.load.image('spear', 'assets/spear.png');     
+        this.load.image('flicker', 'assets/flicker.png');     
         this.load.spritesheet('player', 'assets/player_sheet.png', {
               frameWidth: 64,
               frameHeight: 139
@@ -188,7 +194,7 @@ class FishingScene extends Phaser.Scene {
             var sh = this.activeShark
 
             const distance = Phaser.Math.Distance.Between(sh.x, sh.y, sp.x, sp.y);
-            if (sh.body) this.physics.moveTo(sh,sp.x,sp.y,105)
+            if (sh.body) this.physics.moveTo(sh,sp.x,sp.y,Phaser.Math.Between(90,140))
           }
         }
         else if (this.gameState === 'AIMING' && this.activeSpear) {
@@ -459,7 +465,7 @@ class FishingScene extends Phaser.Scene {
 
     sharkResetMove(mob) {
         if (mob.timer) mob.timer.remove()
-        mob.setVelocityY(0);
+        if (mob.body) mob.setVelocityY(0);
         // this.mobStart(mob,20, this.height/3)
         this.mobMove(mob,50,65)
         mob.attack = false
