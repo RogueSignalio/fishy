@@ -1,6 +1,5 @@
 class FishingScene extends Phaser.Scene {
-    constructor(cfg={}) {
-        super({ key: 'FishingScene' });
+    init(cfg) {
         this.cfg = {
           image_path: './',
           ...cfg

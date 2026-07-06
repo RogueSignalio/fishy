@@ -30,11 +30,17 @@ const config = {
         },
         disableContextMenu: true,
     },
-    scene: FishingScene
+    callbacks: {
+      preBoot: (game) => {
+          game.scene.add('FishingScene', FishingScene, true, { 
+            image_path: 'https://roguesignalio.github.io/fishy/',
+          });
+      },
+    },
+
 };
 
 const game = new Phaser.Game(config);
-
 </script>
 
 </body>
