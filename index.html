@@ -11,7 +11,7 @@
 <script src="./fishy.js"></script>
 </head>
 <body>
-<div id="fish-game" style="width:580px;height:580px;"></div>
+<div id="fish-game" style="width:5200px;height:520px;"></div>
 <script>
 const config = {
     type: Phaser.AUTO,
@@ -34,6 +34,8 @@ const config = {
       preBoot: (game) => {
           game.scene.add('FishingScene', FishingScene, true, { 
             image_path: 'https://roguesignalio.github.io/fishy/',
+            win_score: 20,
+            on_win: function() { console.log(this.cfg.win_score)},
           });
       },
     },

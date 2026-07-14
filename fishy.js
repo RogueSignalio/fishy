@@ -2,6 +2,8 @@ class FishingScene extends Phaser.Scene {
     init(cfg) {
         this.cfg = {
           image_path: './',
+          win_score: 200,
+          on_win: function() { },
           ...cfg
         }
     }
@@ -79,7 +81,7 @@ class FishingScene extends Phaser.Scene {
             yoyo: false,
         });
         this.led = this.add.image(215,this.height-10, 'flicker')
-        .setOrigin(0.5, 0.5).setDepth(32).setTint(0x00FF00).setBlendMode(1).setAlpha(0.1)
+        .setOrigin(0.5, 0.5).setDepth(32).setTint(0xFF0000).setBlendMode(1).setAlpha(0.1)
         .setDisplaySize(this.width/4, this.height/4)//.setTint(0xFFFFFF);
         var tween = this.tweens.add({
             targets: this.led,
@@ -114,12 +116,16 @@ class FishingScene extends Phaser.Scene {
         this.jellyGroup = this.physics.add.group();
         this.seaweedGroup = this.physics.add.group();
         this.spawnShark()
-        this.spawnJelly()
-        this.spawnSeaweed()
+        this.spawnJelly(true)
+        this.spawnJelly(true)
+        this.spawnSeaweed(true)
+        this.spawnSeaweed(true)
+        this.spawnSeaweed(true)
+        this.spawnSeaweed(true)
         this.time.addEvent({ delay: 2500, callback: this.spawnJelly, callbackScope: this, loop: true });
-        this.time.addEvent({ delay: 2500, callback: this.spawnSeaweed, callbackScope: this, loop: true });
-        this.time.addEvent({ delay: 2500, callback: this.spawnShark, callbackScope: this, loop: true });
-        this.time.addEvent({ delay: 1500, callback: this.spawnFish, callbackScope: this, loop: true });
+        this.time.addEvent({ delay: 1000, callback: this.spawnSeaweed, callbackScope: this, loop: true });
+        this.time.addEvent({ delay: 3500, callback: this.spawnShark, callbackScope: this, loop: true });
+        this.time.addEvent({ delay: 3000, callback: this.spawnFish, callbackScope: this, loop: true });
 
         // Input Setup
         this.cursors = this.input.keyboard.createCursorKeys();
@@ -144,9 +150,13 @@ class FishingScene extends Phaser.Scene {
         this.updateMobs(this.seaweedGroup)
         this.updateMobs(this.sharkGroup)
         this.updateMobs(this.fishGroup, (mob) => {
-          const ran = Phaser.Math.Between(1,10000)
-          if (ran > 9900) { mob.mob_move() }          
+          if (mob.state == "normal") {
+            const ran = Phaser.Math.Between(1,10000)
+            if (ran > 9900) { mob.mob_move() }          
+          }
         })
+
+        if (this.gameState === 'WON') { return true; }
 
         var p_diff = Math.abs(this.player.target_x - this.player.x);
         if (p_diff > 0 && p_diff < 4) {  this.stopPlayer(); }
@@ -287,7 +297,7 @@ class FishingScene extends Phaser.Scene {
     hitFish(spear, fish) {
         if (this.gameState !== 'AIMING') return;
         this.activeFish = fish;
-        this.activeFish.timer.remove();
+        if (this.activeFish.timer) this.activeFish.timer.remove();
         this.activeFish.setCollideWorldBounds(false)
 
         spear.setVelocity(0, 0);
@@ -338,6 +348,27 @@ class FishingScene extends Phaser.Scene {
     updateScore(object) {
         this.score += object.score;
         this.scoreText.setText(this.score);
+        if (this.score >= this.cfg.win_score) {
+          this.game_win()
+        }
+    }
+
+    game_win() {
+      console.log('WIN!')
+      this.gameState = "WON"
+      this.instructionText.setText("You Won!");
+      this.instructionText.setColor('#AAFFAA');
+      this.led.setTint(0x00FF00)
+      this.cfg.on_win.bind(this).call();
+      if (this.foreground) this.foreground.postFX.addShine(1.15, 2.5, 7);
+      if (this.background) { this.background.postFX.addShine(1.05, 2.5, 10); }
+      if (this.foreground) this.foreground.postFX.addShine(0.85, 2, 4);
+      if (this.background) { this.background.postFX.addShine(0.95, 2, 8); }
+      if (this.foreground) this.foreground.postFX.addShine(-1.25, 2.5, 7);
+      if (this.background) { this.background.postFX.addShine(-1.15, 2.5, 10); }
+      if (this.foreground) this.foreground.postFX.addShine(-0.75, 2, 4);
+      if (this.background) { this.background.postFX.addShine(-0.85, 2, 8); }
+      this.player.visible = false
     }
 
     destroySpear() {
@@ -357,11 +388,12 @@ class FishingScene extends Phaser.Scene {
     }
 
     resetGame() {
-        this.gameState = 'IDLE';
         this.lineGraphics.clear()
         this.destroySpear()
         if (this.activeShark) this.sharkResetMove(this.activeShark)
         this.destroyFish(this.activeFish)
+        if (this.gameState == "WON") return false 
+
         this.time.delayedCall(1500, () => {
             if (this.gameState === 'IDLE') {
                 this.gameState = 'READY'
@@ -370,7 +402,7 @@ class FishingScene extends Phaser.Scene {
                 this.player.setFrame(0);
             }
         });
-
+        this.gameState = 'IDLE';
         this.instructionText.setText('Reloading....');
         this.instructionText.setColor('#ff0000');
     }
@@ -380,17 +412,78 @@ class FishingScene extends Phaser.Scene {
         else { mob.setFlip(false) }
     }
 
+    addedCheck(mob) {
+      const distance = Phaser.Math.Distance.Between(
+        mob.body.position.x, 
+        mob.body.position.y, 
+        mob.targetx, 
+        mob.targety
+      )
+
+      if (distance < 55) {
+        if (!mob.ignore_bounds) mob.setCollideWorldBounds(true);
+        // console.log('Arrived: ' + mob.texture.key, distance)
+        mob.state = "normal"
+        mob.body.setVelocity(0);
+        mob.mob_move()
+        if (mob.start_timer) mob.start_timer()
+        return false
+      } else if (distance > (this.width * 2.5)) {
+        // console.log('Destroy Fish:' + distance)
+        this.destroyFish(mob);
+      }
+      else {
+//        console.log('Traveling: ' + mob.texture.key, distance)
+      }
+    }
+
     mobMove(mob,minSp,maxSp,dir=null) {
+        const distance = Phaser.Math.Distance.Between(
+          mob.body.position.x, 
+          mob.body.position.y, 
+          mob.targetx, 
+          mob.targety
+        )
+        if (!mob.ignore_bounds) mob.setCollideWorldBounds(true);
         dir = !dir ? Phaser.Math.Between(-1,1) > 0 ? 1 : -1 : dir
         mob.setVelocityX(dir * Phaser.Math.Between(minSp, maxSp));
         this.orientMobDirection(mob)
     }
 
-    mobStart(mob,minY,maxY) {
-        const x = Phaser.Math.Between(20, this.width - 20);
+    mobStart(mob,minY,maxY,lockY=false,now=false) {
+      if (!now) {
+        mob.state = "added"
+        const side = Phaser.Math.Between(0, 100)
+        let maxX = 0
+        let minX = 0
+
+        if (side < 50) {
+          maxX = -1 * (mob.displayWidth + 30)
+          minX = -1 * (mob.displayWidth + 10)
+        } else {
+          maxX = this.width + (mob.displayWidth + 30)
+          minX = this.width + (mob.displayWidth + 10)
+        }
+        const x = Phaser.Math.Between(minX, maxX);
         const y = Phaser.Math.Between(minY, maxY);
+        mob.targetx = Phaser.Math.Between(20, this.width - 20);
+        if (lockY) {
+          mob.targety = y
+        } else {
+          mob.targety = Phaser.Math.Between(minY, maxY);
+        }
+        
         mob.x = x 
         mob.y = y
+        this.physics.moveTo(mob, mob.targetx, mob.targety, Phaser.Math.Between(mob.minSp, mob.maxSp));
+      } else {
+        mob.state = "normal"
+//        console.log('Now: ' + mob.texture.key)
+        mob.x = Phaser.Math.Between(20, this.width - 20);
+        mob.y = Phaser.Math.Between(minY, maxY);
+        mob.mob_move()
+      }
+      this.orientMobDirection(mob)
     }
 
     mobTimer(mob,min,max,callback) {
@@ -400,8 +493,18 @@ class FishingScene extends Phaser.Scene {
     updateMobs(group,callback=null) {
         if (group && group.children) {
             group.children.each(function(mob) {
-                if (mob.x < -200 || mob.x > this.width + 200) { this.destroyFish(mob); }
-                else if (mob.y < -200 || mob.y > this.height + 200) { this.destroyFish(mob); }
+                this.orientMobDirection(mob);
+
+//        console.log('Update: '+ mob.texture.key + ' ; ' + mob.state + ' ; ' + mob.x + ' ; ' + mob.y )
+                if (mob.state != 'added' && (mob.x < -200 || mob.x > this.width + 200)) { 
+//        console.log('Destroy X: '+ mob.texture.key + ' ; ' + mob.state + ' ; ' + mob.x + ' ; ' + mob.y )
+                  this.destroyFish(mob); 
+                }
+                else if (mob.state != 'added' && (mob.y < -200 || mob.y > this.height + 200)) { 
+//        console.log('Destroy Y: '+ mob.texture.key + ' ; ' + mob.state + ' ; ' + mob.x + ' ; ' + mob.y )
+                  this.destroyFish(mob); 
+                }
+                else if (mob.state == 'added') { this.addedCheck(mob) }
                 else { 
                   if (callback) callback(mob)
                   this.orientMobDirection(mob);
@@ -410,24 +513,25 @@ class FishingScene extends Phaser.Scene {
         }
     }
 
-    spawnJelly() {
+    spawnJelly(now=false) {
         if (this.jellyGroup.children.entries.length > Phaser.Math.Between(1,4)) { return ; }
 
         const mob = this.jellyGroup.create(-200, -200, `jelly01`);
+        mob.state = 'added'
         mob.setScale(Phaser.Math.FloatBetween(0.25 ,0.45))
         mob.setOrigin(0.5, 0.5);
-        // mob.setCollideWorldBounds(true);
-        mob.setBounce(1, 0);
+        mob.setCollideWorldBounds(false);
         mob.score = -10;
-        this.mobStart(mob,220,this.height - 128);//,create)
-        mob.mob_move = (create=false) =>  {
-          this.mobMove(mob,15,35)
+        mob.minSp = 15
+        mob.maxSp = 35
+        mob.ignore_bounds = true
+        mob.mob_move = () => {
+          this.mobMove(mob,mob.minSp,mob.maxSp)
         }
-        // this.mobTrigger(mob, () => { mob.mob_move() } )
-        mob.mob_move()
+        this.mobStart(mob,220,this.height - 128,true,now)
     }
 
-    spawnSeaweed() {
+    spawnSeaweed(now=false) {
         if (this.seaweedGroup.children.entries.length > Phaser.Math.Between(2,5)) { return ; }
 
         const mob = this.seaweedGroup.create(-200, -200, `seaweed01`);
@@ -435,38 +539,40 @@ class FishingScene extends Phaser.Scene {
         // mob.setScale(Phaser.Math.FloatBetween(0.65 ,0.85))
         mob.score = 0;
         mob.setOrigin(0.5, 0.5);
-        this.mobStart(mob,this.height/2, this.height - 128)
+        mob.minSp = 2
+        mob.maxSp = 12
+        mob.ignore_bounds = true
         mob.mob_move = () => {
-          this.mobMove(mob,2,12)
+          this.mobMove(mob,mob.minSp,mob.maxSp)
         }
-        mob.mob_move() //.bind(this)
+        this.mobStart(mob,this.height/2, this.height - 128,true,now)
     }
 
-    spawnShark() {
+    spawnShark(now=false) {
         if (this.sharkGroup.children.entries.length > 0) { return ; }
 
         const mob = this.sharkGroup.create(-200, -200, `shark01`);
         mob.body.setSize(mob.displayWidth*0.8, mob.displayHeight*0.6);
         mob.setScale(Phaser.Math.FloatBetween(0.65 ,0.65))
         mob.setOrigin(0.5, 0.5);
-        mob.setCollideWorldBounds(true);
+        mob.setCollideWorldBounds(false);
         mob.setBounce(1, 0);
-
         mob.score = -20;
         mob.attack = false
-        this.mobStart(mob,80, this.height/3)
-        mob.mob_move = () => {
-          this.mobMove(mob,50,65)
-        }
-        mob.mob_move() //.bind(this)
+        mob.minSp = 50
+        mob.maxSp = 65
+        mob.ignore_bounds = false
         this.activeShark = mob
+        mob.mob_move = () => {
+          this.mobMove(mob,mob.minSp,mob.maxSp)
+        }
+        this.mobStart(mob,110,this.height/2.5,true,now)
     }
 
     sharkResetMove(mob) {
         if (mob.timer) mob.timer.remove()
         if (mob.body) mob.setVelocityY(0);
-        // this.mobStart(mob,20, this.height/3)
-        this.mobMove(mob,50,65)
+        this.mobMove(mob,mob.minSp,mob.maxSp)
         mob.attack = false
         mob.timer = this.time.delayedCall(Phaser.Math.Between(10000,20000), () => {
             if (mob) this.fishRun(mob) 
@@ -475,14 +581,15 @@ class FishingScene extends Phaser.Scene {
 
     spawnFish() {
         if (this.fishGroup.children.entries.length > Phaser.Math.Between(3,5)) { return ; }
+        //console.log('Spawn Fish#:' + this.fishGroup.children.entries.length)
 
         const mob_roll = Phaser.Math.Between(1, 100) 
         var mob_id;
         var mob_sizes = {
-            1: [0.6,0.65],
-            2: [0.55,0.60],
-            3: [0.5,0.55],
-            4: [0.65,0.70],
+            1: [0.6,0.65,40,70],
+            2: [0.55,0.60,50,85],
+            3: [0.5,0.55,60,100],
+            4: [0.65,0.70,70,125],
         }
         if      (mob_roll > 90) { mob_id = 4 }
         else if (mob_roll > 70) { mob_id = 3 }
@@ -492,30 +599,36 @@ class FishingScene extends Phaser.Scene {
         const mob = this.fishGroup.create(-200, -200, `fish0${mob_id}`);
         mob.setScale(Phaser.Math.FloatBetween(mob_sizes[mob_id][0] , mob_sizes[mob_id][1]))
         mob.setOrigin(0.5, 0.5);
-        mob.setCollideWorldBounds(true);
+        mob.setCollideWorldBounds(false);
         mob.setBounce(1, 0); // Bounce off walls
         mob.score = 5 * mob_id
+        mob.minSp = mob_sizes[mob_id][2]
+        mob.maxSp = mob_sizes[mob_id][3]
+        mob.ignore_bounds = false
 
-        this.mobStart(mob,80, this.height/3)
         mob.mob_move = () => {
-          this.mobMove(mob,25,125)
+          this.mobMove(mob,mob.minSp,mob.maxSp)
         }
-        mob.mob_move() //.bind(this)
+        // mob.mob_move() //.bind(this)
 
         if (mob.timer) mob.timer.remove()
-        mob.timer = this.time.delayedCall(Phaser.Math.Between(10000,60000), () => {
-            this.fishRun(mob)
-        });
+        mob.start_timer = () => {
+          mob.timer = this.time.delayedCall(Phaser.Math.Between(10000,60000), () => {
+               this.fishRun(mob)
+          });
+        }
+        this.mobStart(mob,80, this.height/3,false)
+
     }
 
     fishRun(fish) {
-        // console.log(fish)
         if (fish) {
+            fish.state = "running"
             if (fish.timer) fish.timer.remove()
             if (fish.body) fish.setCollideWorldBounds(false)
-            let tx = Phaser.Math.Between(-1,1) > 0 ? this.width + 100: -100;
-            let ty = Phaser.Math.Between(-100,-200)
-            if (fish) this.physics.moveTo(fish, tx, ty, 100);
+            let tx = Phaser.Math.Between(-1,1) > 0 ? this.width + 310: -310;
+            let ty = Phaser.Math.Between(-310,-400)
+            if (fish) this.physics.moveTo(fish, tx, ty, fish.maxSp);
         }           
     }
 }
